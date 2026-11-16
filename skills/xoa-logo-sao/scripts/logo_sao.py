@@ -15,9 +15,9 @@ import numpy as np
 MAT_NA = Path(__file__).resolve().parent / 'mat-na'
 
 # Vị trí đo trên file thật (11/2026): cỡ khung -> (cỡ logo px, cách mép phải/dưới px).
-#  - Ảnh Gemini web 1376x768: logo ~48 px, cách mép ~97 px.
+#  - Ảnh Gemini web 1376x768: logo ~44–48 px, cách mép ~97 px; ảnh Google Flow (Nano Banana, bản 1K) cùng cỡ nhưng cách mép ~76 px.
 #  - Video Veo 1280x720: logo ~48 px, cách mép 96 px (tâm 1160,600). Khung 16:9 cỡ khác: co giãn theo bề ngang.
-VI_TRI_ANH = {(1376, 768): (48, 97)}
+VI_TRI_ANH = {(1376, 768): [(48, 97), (46, 76)]}
 VEO_GOC = (48, 96, 1280)
 
 
@@ -34,17 +34,14 @@ def sang_hon_nen(img):
 
 
 def vi_tri_mac_dinh(W, H, video=False):
-    """(x0, y0, co0, ti_le) hoặc None nếu cỡ khung chưa đo."""
+    """Danh sách (x0, y0, co0, ti_le) các vị trí đã đo cho cỡ khung này; rỗng nếu chưa đo."""
     if not video:
-        if (W, H) not in VI_TRI_ANH:
-            return None
-        co0, le = VI_TRI_ANH[(W, H)]
-        return W - le - co0, H - le - co0, co0, 1.0
+        return [(W - le - co0, H - le - co0, co0, 1.0) for co0, le in VI_TRI_ANH.get((W, H), [])]
     if abs(W / H - 16 / 9) > 0.03:
-        return None
+        return []
     s = W / VEO_GOC[2]
     co0, le = round(VEO_GOC[0] * s), round(VEO_GOC[1] * s)
-    return W - le - co0, H - le - co0, co0, s
+    return [(W - le - co0, H - le - co0, co0, s)]
 
 
 def tim(img, x0, y0, co0, s=1.0):
@@ -112,10 +109,11 @@ def chinh_k(imgs, x, y, co, k0):
 def do_logo(imgs, video=False):
     """Đo trên 1 ảnh hoặc nhiều khung mẫu cùng cỡ. Trả dict: coLogo, conLogo (sau khử thử), x, y, co, k, điểm."""
     H, W = imgs[0].shape[:2]
-    vt = vi_tri_mac_dinh(W, H, video)
-    if vt is None:
+    ds = vi_tri_mac_dinh(W, H, video)
+    if not ds:
         return {'loi': f'co {W}x{H} chua do vi tri logo', 'coLogo': None}
-    x0, y0, co0, s = vt
+    # nhiều vị trí đã đo (Gemini / Flow cùng cỡ) -> lấy vị trí khớp tốt nhất trên ảnh đầu
+    x0, y0, co0, s = max(ds, key=lambda v: tim(imgs[0], *v)[0])
     kq = [tim(i, x0, y0, co0, s) for i in imgs]
     truoc, x, y, co = float(np.median([r[0] for r in kq])), *max(kq, key=lambda r: r[0])[1:]
     ng = nguong_nen(imgs, co)
