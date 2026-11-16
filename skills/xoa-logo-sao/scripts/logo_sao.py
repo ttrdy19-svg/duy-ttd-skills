@@ -23,7 +23,8 @@ VEO_GOC = (48, 96, 1280)
 
 def mat_na(co):
     """Alpha (0..1) hình sao cỡ co px, chuẩn hoá đỉnh = 1."""
-    goc = cv2.imread(str(MAT_NA / ('bg_96.png' if co > 60 else 'bg_48.png')), cv2.IMREAD_COLOR).astype(np.float32)
+    # imdecode: thư mục cài skill có dấu thì cv2.imread trả None
+    goc = cv2.imdecode(np.fromfile(str(MAT_NA / ('bg_96.png' if co > 60 else 'bg_48.png')), np.uint8), cv2.IMREAD_COLOR).astype(np.float32)
     a = cv2.resize(goc.max(axis=2) / 255.0, (co, co), interpolation=cv2.INTER_AREA)
     return a / max(float(a.max()), 1e-6)
 
